@@ -37,6 +37,13 @@ jobs:
             echo "No package-lock.json or yarn.lock found, skipping frontend SBOM."
           fi
           
+      - name: Upload SBOM as GitHub artifact
+        if: ${{ exists('sbom/bom-frontend.xml') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-sbom
+          path: ./sbom/bom-frontend.xml
+          
       # Upload Node.js SBOM (if exists)
       - name: Upload Node.js SBOM to Dependency-Track
         env:
