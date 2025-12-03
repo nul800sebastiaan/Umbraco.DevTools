@@ -27,7 +27,8 @@ jobs:
           if [ -f "package.json" ]; then
             npm install --save-dev @cyclonedx/cyclonedx-npm
           else
-            echo "No package.json found, skipping CycloneDX install."
+            echo "ERROR: No package.json found — cannot generate SBOM."
+            exit 1
           fi
 
       - name: Generate SBOM for Node.js (frontend)
@@ -36,18 +37,23 @@ jobs:
           if [ -f "package-lock.json" ] || [ -f "yarn.lock" ]; then
             npx @cyclonedx/cyclonedx-npm -o "$SBOM_FILE"
           else
-            echo "No package-lock.json or yarn.lock found, skipping frontend SBOM."
+            echo "ERROR: No package-lock.json or yarn.lock found — cannot create SBOM."
+            exit 1
+          fi
+
+          # enforce that CycloneDX really produced something
+          if [ ! -f "$SBOM_FILE" ]; then
+            echo "ERROR: SBOM file was not generated."
+            exit 1
           fi
 
       - name: Upload SBOM artifact
-        if: ${{ exists(env.SBOM_FILE) }}
         uses: actions/upload-artifact@v4
         with:
           name: frontend-sbom
           path: ${{ env.SBOM_FILE }}
 
       - name: Upload Node.js SBOM to Dependency-Track
-        if: ${{ exists(env.SBOM_FILE) }}
         env:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
         run: |
@@ -60,4 +66,3 @@ jobs:
             -F "projectName=${{ github.event.repository.name }}-frontend" \
             -F "projectVersion=${{ github.ref_name }}" \
             -F "bom=@$SBOM_FILE"
-
