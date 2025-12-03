@@ -6,15 +6,16 @@ on:
     branches:
       - '*'
 
-env:
-  TRACKER_ENDPOINT: "https://ca-live-global-dtrack-api.purplemoss-6e7d841c.westeurope.azurecontainerapps.io/api/v1/bom"
-
 jobs:
   sbom:
     runs-on: ubuntu-latest
+    env:
+      SBOM_FILE: sbom/bom-frontend.xml
+      TRACKER_ENDPOINT: "https://ca-live-global-dtrack-api.purplemoss-6e7d841c.westeurope.azurecontainerapps.io/api/v1/bom"
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4    
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,34 +32,32 @@ jobs:
 
       - name: Generate SBOM for Node.js (frontend)
         run: |
+          mkdir -p sbom
           if [ -f "package-lock.json" ] || [ -f "yarn.lock" ]; then
-            npx @cyclonedx/cyclonedx-npm -o ./sbom/bom-frontend.xml
+            npx @cyclonedx/cyclonedx-npm -o "$SBOM_FILE"
           else
             echo "No package-lock.json or yarn.lock found, skipping frontend SBOM."
           fi
-          
-      - name: Upload SBOM as GitHub artifact
-        if: ${{ exists('sbom/bom-frontend.xml') }}
+
+      - name: Upload SBOM artifact
+        if: ${{ exists(env.SBOM_FILE) }}
         uses: actions/upload-artifact@v4
         with:
           name: frontend-sbom
-          path: ./sbom/bom-frontend.xml
-          
-      # Upload Node.js SBOM (if exists)
+          path: ${{ env.SBOM_FILE }}
+
       - name: Upload Node.js SBOM to Dependency-Track
+        if: ${{ exists(env.SBOM_FILE) }}
         env:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
         run: |
-          if [ -f ./sbom/bom-frontend.xml ]; then
-            curl --fail-with-body -v -i -w "\nHTTP Status: %{http_code}\n" \
-              -X POST "$TRACKER_ENDPOINT" \
-              -H "X-Api-Key: $DTRACK_API_KEY" \
-              -H "accept: application/json" \
-              -H "Content-Type: multipart/form-data" \
-              -F "autoCreate=true" \
-              -F "projectName=${{ github.event.repository.name }}-frontend" \
-              -F "projectVersion=${{ github.ref_name }}" \
-              -F "bom=@./sbom/bom-frontend.xml"
-          else
-            echo "No frontend SBOM to upload."
-          fi
+          curl --fail-with-body -v -i -w "\nHTTP Status: %{http_code}\n" \
+            -X POST "$TRACKER_ENDPOINT" \
+            -H "X-Api-Key: $DTRACK_API_KEY" \
+            -H "accept: application/json" \
+            -H "Content-Type: multipart/form-data" \
+            -F "autoCreate=true" \
+            -F "projectName=${{ github.event.repository.name }}-frontend" \
+            -F "projectVersion=${{ github.ref_name }}" \
+            -F "bom=@$SBOM_FILE"
+
