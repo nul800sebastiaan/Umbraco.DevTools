@@ -11,6 +11,8 @@ env:
 
 jobs:
   sbom:
+    runs-on: ubuntu-latest
+    steps:
       # Node.js SBOM
       - name: Setup Node.js
         uses: actions/setup-node@v4
