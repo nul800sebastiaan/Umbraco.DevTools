@@ -32,7 +32,7 @@ jobs:
       - name: Generate SBOM for Node.js (frontend)
         run: |
           if [ -f "package-lock.json" ] || [ -f "yarn.lock" ]; then
-            npx @cyclonedx/cyclonedx-npm -o ../../sbom/bom-frontend.xml
+            npx @cyclonedx/cyclonedx-npm -o ./sbom/bom-frontend.xml
           else
             echo "No package-lock.json or yarn.lock found, skipping frontend SBOM."
           fi
